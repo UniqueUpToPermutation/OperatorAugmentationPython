@@ -16,7 +16,26 @@ class VectorDistributionInterface:
         return None
 
 
-class AUGMatrixSampleInterface:
+class LambdaVectorDistribution(VectorDistributionInterface):
+    def __init__(self, sample_func):
+        self.sample_func = sample_func
+
+    def draw_sample(self) -> np.ndarray:
+        return self.sample_func()
+
+
+class LambdaIdenticalVectorPairDistribution(VectorPairDistributionInterface):
+    def __init__(self, sample_func):
+        self.sample_func = sample_func
+
+    def are_equal(self) -> bool:
+        return True
+
+    def draw_sample(self) -> (np.ndarray, np.ndarray):
+        sample = self.sample_func()
+        return (sample, sample)
+
+class MatrixSampleInterface:
     def preprocess(self):
         pass
 
@@ -24,7 +43,7 @@ class AUGMatrixSampleInterface:
         return b
 
 
-class AUGDefaultMatrixSample(AUGMatrixSampleInterface):
+class DefaultMatrixSample(MatrixSampleInterface):
     def __init__(self, mat: spla.spmatrix):
         self.matrix = mat
 
@@ -33,12 +52,12 @@ class AUGDefaultMatrixSample(AUGMatrixSampleInterface):
 
 
 
-class AUGMatrixDistributionInterface:
-    def draw_sample(self) -> AUGMatrixSampleInterface:
+class MatrixDistributionInterface:
+    def draw_sample(self) -> MatrixSampleInterface:
         pass
 
 
-class ENAUGMatrixDistributionInterface:
+class LambdaDistributionInterface:
     def draw_sample(self):
         return lambda x: x
 
@@ -80,7 +99,7 @@ def aug_fac(num_system_samples: int,
             num_per_system_samples: int,
             dimension: int,
             op_Ahat_inv,
-            bootstrap_mat_dist: AUGMatrixDistributionInterface,
+            bootstrap_mat_dist: MatrixDistributionInterface,
             q_u_dist: VectorPairDistributionInterface = None,
             op_R = lambda x: x,
             op_B = lambda x: x):
@@ -120,13 +139,13 @@ def aug_fac(num_system_samples: int,
 
 
 def aug(num_system_samples: int,
-            num_per_system_samples: int,
-            rhs: np.ndarray,
-            op_Ahat_inv,
-            bootstrap_mat_dist: AUGMatrixDistributionInterface,
-            q_u_dist: VectorPairDistributionInterface = None,
-            op_R = lambda x: x,
-            op_B = lambda x: x):
+        num_per_system_samples: int,
+        rhs: np.ndarray,
+        op_Ahat_inv,
+        bootstrap_mat_dist: MatrixDistributionInterface,
+        q_u_dist: VectorPairDistributionInterface = None,
+        op_R = lambda x: x,
+        op_B = lambda x: x):
 
     beta = aug_fac(num_system_samples,
                    num_per_system_samples,
@@ -150,11 +169,11 @@ def pre_aug(beta,
 
 # Implements energy norm operator augmentation
 def en_aug_fac(num_system_samples: int,
-                     num_per_system_samples: int,
-                     dimension: int,
-                     op_Ahat,
-                     bootstrap_mat_dist: AUGMatrixDistributionInterface,
-                     q_dist: VectorDistributionInterface = None):
+               num_per_system_samples: int,
+               dimension: int,
+               op_Ahat,
+               bootstrap_mat_dist: MatrixDistributionInterface,
+               q_dist: VectorDistributionInterface = None):
 
     numerator = 0.0
     denominator = 0.0
@@ -181,13 +200,13 @@ def en_aug_fac(num_system_samples: int,
 
 
 def en_aug(num_system_samples: int,
-                 num_per_system_samples: int,
-                 rhs: np.ndarray,
-                 op_Ahat_inv,
-                 op_Ahat,
-                 bootstrap_mat_dist: AUGMatrixDistributionInterface,
-                 q_dist: VectorDistributionInterface = None,
-                 op_C = lambda x: x):
+           num_per_system_samples: int,
+           rhs: np.ndarray,
+           op_Ahat_inv,
+           op_Ahat,
+           bootstrap_mat_dist: MatrixDistributionInterface,
+           q_dist: VectorDistributionInterface = None,
+           op_C = lambda x: x):
 
     beta = en_aug_fac(num_system_samples,
                             num_per_system_samples,
@@ -215,7 +234,7 @@ def en_aug_trunc_fac(num_system_samples: int,
                      order: int,
                      op_Ahat_inv,
                      op_Ahat,
-                     bootstrap_mat_dist: ENAUGMatrixDistributionInterface,
+                     bootstrap_mat_dist: LambdaDistributionInterface,
                      q_dist: VectorDistributionInterface = None):
 
     numerator = 0.0
@@ -253,7 +272,7 @@ def en_aug_trunc(num_system_samples: int,
                  order: int,
                  op_Ahat_inv,
                  op_Ahat,
-                 bootstrap_mat_dist: ENAUGMatrixDistributionInterface,
+                 bootstrap_mat_dist: LambdaDistributionInterface,
                  q_dist: VectorDistributionInterface = None,
                  op_C = lambda x: x):
 
@@ -286,7 +305,7 @@ def en_aug_shift_trunc_fac(num_system_samples: int,
                            alpha,
                            op_Ahat_inv,
                            op_Ahat,
-                           bootstrap_mat_dist: ENAUGMatrixDistributionInterface,
+                           bootstrap_mat_dist: LambdaDistributionInterface,
                            q_dist: VectorDistributionInterface = None):
 
     numerator = 0.0
@@ -325,7 +344,7 @@ def en_aug_shift_trunc(num_system_samples: int,
                        alpha,
                        op_Ahat_inv,
                        op_Ahat,
-                       bootstrap_mat_dist: ENAUGMatrixDistributionInterface,
+                       bootstrap_mat_dist: LambdaDistributionInterface,
                        q_dist: VectorDistributionInterface = None,
                        op_C = lambda x: x):
 
@@ -384,7 +403,7 @@ def en_aug_accel_shift_trunc_fac(num_system_samples: int,
                                  eps,
                                  op_Ahat_inv,
                                  op_Ahat,
-                                 bootstrap_mat_dist: ENAUGMatrixDistributionInterface,
+                                 bootstrap_mat_dist: LambdaDistributionInterface,
                                  q_dist: VectorDistributionInterface = None):
 
     numerator = 0.0
@@ -424,7 +443,7 @@ def en_aug_accel_shift_trunc(num_system_samples: int,
                              order: int,
                              op_Ahat_inv,
                              op_Ahat,
-                             bootstrap_mat_dist: ENAUGMatrixDistributionInterface,
+                             bootstrap_mat_dist: LambdaDistributionInterface,
                              eps=0.01,
                              q_dist: VectorDistributionInterface = None,
                              op_C = lambda x: x):

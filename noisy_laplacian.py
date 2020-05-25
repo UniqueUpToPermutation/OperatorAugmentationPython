@@ -3,8 +3,8 @@ import numpy as np
 from itertools import groupby
 import matplotlib.pyplot as plt
 import scipy.sparse.linalg as spla
-
 import augmentation as aug
+
 
 def add_noise_to_graph(graph : nx.Graph, variance):
     g_new = nx.Graph(graph)
@@ -23,7 +23,7 @@ def add_noise_to_graph(graph : nx.Graph, variance):
     return g_new
 
 
-class NoisyLaplacianDistribution(aug.AUGMatrixDistributionInterface):
+class NoisyLaplacianDistribution(aug.MatrixDistributionInterface):
     def __init__(self, tru_graph, interior, variance):
         self.tru_graph = tru_graph
         self.interior = interior
@@ -36,26 +36,9 @@ class NoisyLaplacianDistribution(aug.AUGMatrixDistributionInterface):
         lap = nx.linalg.laplacian_matrix(noisy_graph)
         return lap[self.interior, :][:, self.interior]
 
-    def draw_sample(self) -> aug.AUGMatrixSampleInterface:
+    def draw_sample(self) -> aug.MatrixSampleInterface:
         noisy_g = self.draw_graph_sample()
-        return aug.AUGDefaultMatrixSample(self.convert_to_matrix(noisy_g))
-
-
-class NoisyLaplacianVectorPairDistribution(aug.VectorPairDistributionInterface):
-    def __init__(self, b_distribution):
-        self.b_distribution = b_distribution
-
-    def draw_sample(self) -> (np.ndarray, np.ndarray):
-        sample = self.b_distribution()
-        return sample, sample
-
-
-class NoisyLaplacianVectorDistribution(aug.VectorDistributionInterface):
-    def __init__(self, b_distribution):
-        self.b_distribution = b_distribution
-
-    def draw_sample(self) -> (np.ndarray, np.ndarray):
-        return self.b_distribution()
+        return aug.DefaultMatrixSample(self.convert_to_matrix(noisy_g))
 
 
 def run_test(tru_graph, runs, samples_per_run, boundary):
@@ -65,10 +48,10 @@ def run_test(tru_graph, runs, samples_per_run, boundary):
 
     # Let the right hand side be a complete random realization
     b_dist = lambda: np.random.randn(interior_dimension)
-    q_u_dist = NoisyLaplacianVectorPairDistribution(b_dist)
-    q_dist = NoisyLaplacianVectorDistribution(b_dist)
+    q_u_dist = aug.LambdaIdenticalVectorPairDistribution(b_dist)
+    q_dist = aug.LambdaVectorDistribution(b_dist)
 
-    variance = 0.1
+    variance = 0.5
 
     tru_dist = NoisyLaplacianDistribution(tru_graph, interior, variance)
     tru_mat = tru_dist.convert_to_matrix(tru_graph)
@@ -122,13 +105,21 @@ def run_test(tru_graph, runs, samples_per_run, boundary):
     errs_energy_aug_squared = np.array(errs_energy_aug_squared)
     errs_energy_en_aug_squared = np.array(errs_energy_en_aug_squared)
 
-    print(f'Average naive L2 error squared: {np.mean(errs_l2_naive_squared)}')
-    print(f'Average augmented L2 error squared: {np.mean(errs_l2_aug_squared)}')
-    print(f'Average energy-augmented L2 error squared: {np.mean(errs_l2_en_aug_squared)}')
+    sqrt_runs = np.sqrt(runs)
+
+    print(f'Average naive L2 error squared: {np.mean(errs_l2_naive_squared)} +- '
+          f'{2 * np.std(errs_l2_naive_squared) / sqrt_runs}')
+    print(f'Average augmented L2 error squared: {np.mean(errs_l2_aug_squared)} +- '
+          f'{2 * np.std(errs_l2_aug_squared) / sqrt_runs}')
+    print(f'Average energy-augmented L2 error squared: {np.mean(errs_l2_en_aug_squared)} +- '
+          f'{2 * np.std(errs_l2_en_aug_squared) / sqrt_runs}')
     print('')
-    print(f'Average naive energy error squared: {np.mean(errs_energy_naive_squared)}')
-    print(f'Average augmented energy error squared: {np.mean(errs_energy_aug_squared)}')
-    print(f'Average energy-augmented energy error squared: {np.mean(errs_energy_en_aug_squared)}')
+    print(f'Average naive energy error squared: {np.mean(errs_energy_naive_squared)} +- '
+          f'{2 * np.std(errs_energy_naive_squared) / sqrt_runs}')
+    print(f'Average augmented energy error squared: {np.mean(errs_energy_aug_squared)} +- '
+          f'{2 * np.std(errs_energy_aug_squared) / sqrt_runs}')
+    print(f'Average energy-augmented energy error squared: {np.mean(errs_energy_en_aug_squared)} +- '
+          f'{2 * np.std(errs_energy_en_aug_squared) / sqrt_runs}')
 
 
 def main():
@@ -137,7 +128,10 @@ def main():
 
     boundary = {4, 20, 35, 80, 100, 110, 160}
 
-    run_test(graph, 100, 100, boundary)
+    nx.draw(graph, node_size=40)
+    plt.show()
+
+    run_test(graph, 100, 10, boundary)
 
 
 if __name__ == "__main__":
