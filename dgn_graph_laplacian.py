@@ -73,7 +73,7 @@ def main():
     graph = nx.read_edgelist("data/aves-wildbird-network-1/aves-wildbird-network-1.edges",
                              comments="%", data=(('weight', float),))
 
-    boundary = {0}
+    boundary = {0, 20, 30, 60, 100, 110}
     interior = list(set(range(0, len(graph))).difference(boundary))
     variance = 0.5
 
@@ -86,62 +86,65 @@ def main():
     problem_def = dgn.ProblemDefinition(true_mat_dist)
     diagnostics = dgn.DiagnosticRun(problem_def)
 
+    num_sub_runs = 100
+    samples_per_sub_run = 20
+
     # Naive run
     run = dgn.NaiveProblemRun(problem_def)
-    run.num_sub_runs = 100
+    run.num_sub_runs = num_sub_runs
     diagnostics.add_run(run)
 
     # Run with basic semi-Bayesian operator augmentation
     run = dgn.AugProblemRun(problem_def)
-    run.num_sub_runs = 100
-    run.samples_per_sub_run = 100
+    run.num_sub_runs = num_sub_runs
+    run.samples_per_sub_run = samples_per_sub_run
     diagnostics.add_run(run)
 
     # Run with energy norm semi-Bayesian operator augmentation
     run = dgn.EnAugProblemRun(problem_def)
-    run.num_sub_runs = 100
-    run.samples_per_sub_run = 100
+    run.num_sub_runs = num_sub_runs
+    run.samples_per_sub_run = samples_per_sub_run
     diagnostics.add_run(run)
 
     # Run with truncated energy norm semi-Bayesian operator augmentation
     run = dgn.TruncEnAugProblemRun(problem_def, 2)
-    run.num_sub_runs = 100
-    run.samples_per_sub_run = 100
+    run.num_sub_runs = num_sub_runs
+    run.samples_per_sub_run = samples_per_sub_run
     diagnostics.add_run(run)
 
     # Run with truncated energy norm semi-Bayesian operator augmentation
     run = dgn.TruncEnAugProblemRun(problem_def, 4)
-    run.num_sub_runs = 100
-    run.samples_per_sub_run = 100
+    run.num_sub_runs = num_sub_runs
+    run.samples_per_sub_run = samples_per_sub_run
     diagnostics.add_run(run)
 
     # Run with accelerated truncated energy norm semi-Bayesian operator augmentation
     run = dgn.TruncEnAugAccelProblemRun(problem_def, 2)
-    run.num_sub_runs = 100
-    run.samples_per_sub_run = 100
+    run.num_sub_runs = num_sub_runs
+    run.samples_per_sub_run = samples_per_sub_run
     diagnostics.add_run(run)
 
     # Run with accelerated truncated energy norm semi-Bayesian operator augmentation
     run = dgn.TruncEnAugAccelProblemRun(problem_def, 4)
-    run.num_sub_runs = 100
-    run.samples_per_sub_run = 100
+    run.num_sub_runs = num_sub_runs
+    run.samples_per_sub_run = samples_per_sub_run
     diagnostics.add_run(run)
 
     # Run with accelerated truncated energy norm semi-Bayesian operator augmentation
     run = dgn.TruncEnAugAccelProblemRun(problem_def, 6)
-    run.num_sub_runs = 100
-    run.samples_per_sub_run = 100
+    run.num_sub_runs = num_sub_runs
+    run.samples_per_sub_run = samples_per_sub_run
     diagnostics.add_run(run)
 
     # Run hard window truncated energy norm operator augmentation
     run = dgn.TruncEnAugProblemRun(problem_def, 2, window_funcs='hard')
-    run.num_sub_runs = 100
-    run.samples_per_sub_run = 100
+    run.num_sub_runs = num_sub_runs
+    run.samples_per_sub_run = samples_per_sub_run
     diagnostics.add_run(run)
 
     run = dgn.TruncEnAugProblemRun(problem_def, 4, window_funcs='hard')
-    run.num_sub_runs = 100
-    run.samples_per_sub_run = 100
+    run.num_sub_runs = num_sub_runs
+    run.samples_per_sub_run = samples_per_sub_run
     diagnostics.add_run(run)
 
     # Run all diagnostics and print results
