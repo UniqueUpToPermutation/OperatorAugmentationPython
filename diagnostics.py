@@ -25,7 +25,7 @@ class ProblemDefinition:
     def __init__(self, tru_distribution: MatrixParameterDistribution):
         self.tru_distribution = tru_distribution
         self.b_distribution = aug.VectorDistributionFromLambda(
-            lambda x: np.random.randn(self.tru_distribution.get_dimension()))
+            lambda: np.random.randn(self.tru_distribution.get_dimension()))
 
         self.tru_mat = self.tru_distribution.convert(self.tru_distribution.matrix_parameters)
         self.energy_norm_squared = lambda x: np.dot(x, self.tru_mat.apply(x))

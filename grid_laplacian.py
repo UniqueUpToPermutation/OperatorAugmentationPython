@@ -1,6 +1,7 @@
 import numpy as np
 import scipy.sparse.linalg as spla
 import scipy.sparse
+import scipy.sparse.linalg as spla
 from scipy.linalg import solveh_banded
 import augmentation as aug
 

@@ -1,80 +1,89 @@
 import diagnostics as dgn
 import numpy as np
 import augmentation as aug
-from scipy.linalg import solveh_banded
+import scipy.sparse.linalg as spla
 import pickle
+import networkx as nx
+import matplotlib.pyplot as plt
 
 
-def form_laplacian(a: np.ndarray) -> np.ndarray:
-    n = a.shape[0]
-    h = 1.0/n
-    mid = (a[:-1] + a[1:]) / (h ** 2)
-    left = -a[1:-1] / (h ** 2)
-    left = np.concatenate((np.array([0.0]), left))
-    return np.vstack((left, mid))
+def add_noise_to_graph(graph: nx.Graph, variance):
+    g_new = nx.Graph(graph)
+
+    k = 1 / variance
+    theta = variance
+
+    e_dict = {}
+
+    for (u, v, w) in g_new.edges.data('weight'):
+        new_w = w * np.random.gamma(k, theta)
+        e_dict[(u, v)] = new_w
+
+    nx.set_edge_attributes(g_new, e_dict, 'weight')
+
+    return g_new
 
 
-def perturb_background(a: np.ndarray, std_dev: float) -> np.ndarray:
-    tmp = std_dev * np.sign(np.random.rand(a.shape[0]) - 0.5) + 1.0
-    return a * tmp
-
-
-class GridLaplacianMatrixSample(aug.MatrixSampleInterface):
-    def __init__(self, mat_diags):
-        self.matrix_diags = mat_diags
+class GraphLaplacianMatrixSample(aug.MatrixSampleInterface):
+    def __init__(self, mat):
+        self.matrix = mat
 
     def preprocess(self):
         pass
 
     def solve(self, b: np.ndarray) -> np.ndarray:
-        return solveh_banded(self.matrix_diags, b)
+        return spla.spsolve(self.matrix, b)
 
     def apply(self, b: np.ndarray) -> np.ndarray:
-        upper_prod = np.concatenate((self.matrix_diags[0, 1:] * b[1:], np.array([0.0])))
-        lower_prod = np.concatenate((np.array([0.0]), self.matrix_diags[0, 1:] * b[:-1]))
-        return self.matrix_diags[1, :] * b + upper_prod + lower_prod
+        return self.matrix @ b
 
 
-class GridLaplacianParameters:
-    def __init__(self, true_a):
-        self.true_a = true_a
+class GraphLaplacianParameters:
+    def __init__(self, graph):
+        self.graph = graph
 
 
-class GridLaplacianHyperparameters:
-    def __init__(self, std_dev):
-        self.std_dev = std_dev
+class GraphLaplacianHyperparameters:
+    def __init__(self, variance, interior):
+        self.variance = variance
+        self.interior = interior
 
 
-class GridLaplacianDistribution(dgn.MatrixParameterDistribution):
-    def __init__(self, parameters: GridLaplacianParameters, hyperparameters: GridLaplacianHyperparameters):
-        self.true_a = parameters.true_a
-        self.std_dev = hyperparameters.std_dev
-        self.dimension = parameters.true_a.shape[0] - 1
+class GraphLaplacianDistribution(dgn.MatrixParameterDistribution):
+    def __init__(self, parameters: GraphLaplacianParameters, hyperparameters: GraphLaplacianHyperparameters):
+        self.true_graph = parameters.graph
+        self.variance = hyperparameters.variance
+        self.interior = hyperparameters.interior
         dgn.MatrixParameterDistribution.__init__(self, parameters, hyperparameters)
 
     def draw_parameters(self):
-        noisy_a = perturb_background(self.true_a, self.std_dev)
-        return GridLaplacianParameters(noisy_a)
+        noisy_graph = add_noise_to_graph(self.true_graph, self.variance)
+        return GraphLaplacianParameters(noisy_graph)
 
     def convert(self, matrix_parameters) -> aug.MatrixSampleInterface:
-        return GridLaplacianMatrixSample(form_laplacian(matrix_parameters.true_a))
+        lap = nx.linalg.laplacian_matrix(matrix_parameters.graph)
+        sub_lap = lap[self.interior, :][:, self.interior]
+        return GraphLaplacianMatrixSample(sub_lap)
 
     def get_dimension(self) -> int:
-        return self.dimension
+        return len(self.interior)
 
 
 def main():
-    n = 128
-    std_dev = 0.5
-    true_a = np.ones(n)
-    xs = np.arange(1, n) / n
-    b_distribution = lambda: np.cos(2.0 * np.pi * xs)
+    graph = nx.read_edgelist("data/aves-wildbird-network-1/aves-wildbird-network-1.edges",
+                             comments="%", data=(('weight', float),))
 
-    params = GridLaplacianParameters(true_a)
-    hyperparams = GridLaplacianHyperparameters(std_dev)
-    true_mat_dist = GridLaplacianDistribution(params, hyperparams)
+    boundary = {0}
+    interior = list(set(range(0, len(graph))).difference(boundary))
+    variance = 0.5
+
+    nx.draw(graph, node_size=40)
+    plt.show()
+
+    params = GraphLaplacianParameters(graph)
+    hyperparams = GraphLaplacianHyperparameters(variance, interior)
+    true_mat_dist = GraphLaplacianDistribution(params, hyperparams)
     problem_def = dgn.ProblemDefinition(true_mat_dist)
-    problem_def.b_distribution = aug.VectorDistributionFromLambda(b_distribution) #Set distribution of rhs
     diagnostics = dgn.DiagnosticRun(problem_def)
 
     # Naive run
@@ -139,7 +148,7 @@ def main():
     diagnostics.run()
     print()
     diagnostics.print_results()
-    pickle.dump(diagnostics.results, open('dgn_grid_laplacian.pkl', 'wb'))
+    pickle.dump(diagnostics.results, open('dgn_graph_laplacian.pkl', 'wb'))
 
 
 if __name__ == "__main__":
