@@ -73,52 +73,70 @@ def main():
     hyperparams = GridLaplacianHyperparameters(std_dev)
     true_mat_dist = GridLaplacianDistribution(params, hyperparams)
     problem_def = dgn.ProblemDefinition(true_mat_dist)
-    problem_def.b_distribution = aug.VectorDistributionFromLambda(b_distribution) # Set distribution of rhs
+    problem_def.b_distribution = aug.VectorDistributionFromLambda(b_distribution) #Set distribution of rhs
     diagnostics = dgn.DiagnosticRun(problem_def)
 
     # Naive run
-    run1 = dgn.NaiveProblemRun(problem_def)
-    run1.num_sub_runs = 100
-    diagnostics.add_run(run1)
+    run = dgn.NaiveProblemRun(problem_def)
+    run.num_sub_runs = 100
+    diagnostics.add_run(run)
 
     # Run with basic semi-Bayesian operator augmentation
-    run2 = dgn.AugProblemRun(problem_def)
-    run2.num_sub_runs = 100
-    run2.samples_per_sub_run = 100
-    diagnostics.add_run(run2)
+    run = dgn.AugProblemRun(problem_def)
+    run.num_sub_runs = 100
+    run.samples_per_sub_run = 100
+    diagnostics.add_run(run)
 
     # Run with energy norm semi-Bayesian operator augmentation
-    run3 = dgn.EnAugProblemRun(problem_def)
-    run3.num_sub_runs = 100
-    run3.samples_per_sub_run = 100
-    diagnostics.add_run(run3)
+    run = dgn.EnAugProblemRun(problem_def)
+    run.num_sub_runs = 100
+    run.samples_per_sub_run = 100
+    diagnostics.add_run(run)
 
     # Run with truncated energy norm semi-Bayesian operator augmentation
-    run4 = dgn.TruncEnAugProblemRun(problem_def, 2)
-    run4.num_sub_runs = 100
-    run4.samples_per_sub_run = 100
-    diagnostics.add_run(run4)
-
-    # Run with accelerated truncated energy norm semi-Bayesian operator augmentation
-    run5 = dgn.TruncEnAugAccelProblemRun(problem_def, 2)
-    run5.num_sub_runs = 100
-    run5.samples_per_sub_run = 100
-    diagnostics.add_run(run5)
+    run = dgn.TruncEnAugProblemRun(problem_def, 2)
+    run.num_sub_runs = 100
+    run.samples_per_sub_run = 100
+    diagnostics.add_run(run)
 
     # Run with truncated energy norm semi-Bayesian operator augmentation
-    run6 = dgn.TruncEnAugProblemRun(problem_def, 4)
-    run6.num_sub_runs = 100
-    run6.samples_per_sub_run = 100
-    diagnostics.add_run(run6)
+    run = dgn.TruncEnAugProblemRun(problem_def, 4)
+    run.num_sub_runs = 100
+    run.samples_per_sub_run = 100
+    diagnostics.add_run(run)
 
     # Run with accelerated truncated energy norm semi-Bayesian operator augmentation
-    run7 = dgn.TruncEnAugAccelProblemRun(problem_def, 4)
-    run7.num_sub_runs = 100
-    run7.samples_per_sub_run = 100
-    diagnostics.add_run(run7)
+    run = dgn.TruncEnAugAccelProblemRun(problem_def, 2)
+    run.num_sub_runs = 100
+    run.samples_per_sub_run = 100
+    diagnostics.add_run(run)
+
+    # Run with accelerated truncated energy norm semi-Bayesian operator augmentation
+    run = dgn.TruncEnAugAccelProblemRun(problem_def, 4)
+    run.num_sub_runs = 100
+    run.samples_per_sub_run = 100
+    diagnostics.add_run(run)
+
+    # Run with accelerated truncated energy norm semi-Bayesian operator augmentation
+    run = dgn.TruncEnAugAccelProblemRun(problem_def, 6)
+    run.num_sub_runs = 100
+    run.samples_per_sub_run = 100
+    diagnostics.add_run(run)
+
+    # Run hard window truncated energy norm operator augmentation
+    run = dgn.TruncEnAugProblemRun(problem_def, 2, window_funcs='hard')
+    run.num_sub_runs = 100
+    run.samples_per_sub_run = 100
+    diagnostics.add_run(run)
+
+    run = dgn.TruncEnAugProblemRun(problem_def, 4, window_funcs='hard')
+    run.num_sub_runs = 100
+    run.samples_per_sub_run = 100
+    diagnostics.add_run(run)
 
     # Run all diagnostics and print results
     diagnostics.run()
+    print()
     diagnostics.print_results()
     pickle.dump(diagnostics.results, open('dgn_grid_laplacian.pkl', 'wb'))
 

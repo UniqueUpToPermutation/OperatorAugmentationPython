@@ -1,6 +1,6 @@
 import augmentation as aug
 import numpy as np
-import pickle
+from tqdm import tqdm
 
 
 class MatrixParameterDistribution(aug.MatrixDistributionInterface):
@@ -100,10 +100,14 @@ class EnAugProblemRun(ProblemRun):
 
 
 class TruncEnAugProblemRun(ProblemRun):
-    def __init__(self, parent: ProblemDefinition, order, op_C = lambda x: x):
-        name = f'Truncated Energy-Norm Augmentation (Order {order})'
+    def __init__(self, parent: ProblemDefinition, order, window_funcs='default', op_C = lambda x: x):
+        if window_funcs == 'default':
+            name = f'Trunc. En-Norm Augmentation (Order {order})'
+        else:
+            name = f'Trunc. En-Norm Augmentation (Order {order}, {window_funcs.capitalize()} Window)'
         self.order = order
         self.op_C = op_C
+        self.window_funcs = window_funcs
         ProblemRun.__init__(self, parent, name)
 
     def sub_run(self, bootstrap_distribution: MatrixParameterDistribution,
@@ -112,16 +116,59 @@ class TruncEnAugProblemRun(ProblemRun):
         sampled_mat.preprocess()
         op_Ahat_inv = lambda x: sampled_mat.solve(x)
         op_Ahat = lambda x: sampled_mat.apply(x)
-        return aug.en_aug_trunc(self.samples_per_sub_run, self.samples_per_system, b, self.order,
-                          op_Ahat_inv, op_Ahat, bootstrap_distribution, self.q_distribution, self.op_C)
+        if self.window_funcs == 'hard':
+            return aug.en_aug_trunc(self.samples_per_sub_run, self.samples_per_system, b, self.order,
+                                    op_Ahat_inv, op_Ahat, bootstrap_distribution, self.q_distribution, self.op_C,
+                                    aug.hard_window_func_numerator,
+                                    aug.hard_window_func_denominator)
+        else:
+            return aug.en_aug_trunc(self.samples_per_sub_run, self.samples_per_system, b, self.order,
+                                    op_Ahat_inv, op_Ahat, bootstrap_distribution, self.q_distribution, self.op_C)
+
+
+class TruncEnAugShiftedProblemRun(ProblemRun):
+    def __init__(self, parent: ProblemDefinition, order, alpha, window_funcs='default', op_C=lambda x: x):
+        if window_funcs == 'default':
+            name = f'Shifted Trunc. En-Norm Augmentation (Order {order})'
+        else:
+            name = f'Shifted Trunc. En-Norm Augmentation (Order {order}, {window_funcs.capitalize()} Window)'
+        self.order = order
+        self.op_C = op_C
+        self.alpha = alpha
+        self.window_funcs = window_funcs
+        ProblemRun.__init__(self, parent, name)
+
+    def sub_run(self, bootstrap_distribution: MatrixParameterDistribution,
+                b: np.ndarray):
+        sampled_mat = bootstrap_distribution.convert(bootstrap_distribution.matrix_parameters)
+        sampled_mat.preprocess()
+        op_Ahat_inv = lambda x: sampled_mat.solve(x)
+        op_Ahat = lambda x: sampled_mat.apply(x)
+        if self.window_funcs == 'hard':
+            return aug.en_aug_shift_trunc(self.samples_per_sub_run, self.samples_per_system,
+                                          b, self.order, self.alpha, op_Ahat_inv, op_Ahat,
+                                          bootstrap_distribution,
+                                          self.q_distribution, self.op_C,
+                                          aug.hard_shifted_window_func_numerator,
+                                          aug.hard_shifted_window_func_denominator)
+
+        else:
+            return aug.en_aug_shift_trunc(self.samples_per_sub_run, self.samples_per_system,
+                                          b, self.order, self.alpha, op_Ahat_inv, op_Ahat,
+                                          bootstrap_distribution,
+                                          self.q_distribution, self.op_C)
 
 
 class TruncEnAugAccelProblemRun(ProblemRun):
-    def __init__(self, parent: ProblemDefinition, order, op_C = lambda x: x):
-        name = f'Accelerated Truncated Energy-Norm Augmentation (Order {order})'
+    def __init__(self, parent: ProblemDefinition, order, window_funcs='default', op_C = lambda x: x):
+        if window_funcs == 'default':
+            name = f'Accel. Shifted Trunc. En-Norm Augmentation (Order {order})'
+        else:
+            name = f'Accel. Shifted Trunc. En-Norm Augmentation (Order {order}, {window_funcs.capitalize()} Window)'
         self.order = order
         self.op_C = op_C
         self.eps = 0.01
+        self.window_funcs = window_funcs
         ProblemRun.__init__(self, parent, name)
 
     def sub_run(self, bootstrap_distribution: MatrixParameterDistribution,
@@ -130,10 +177,18 @@ class TruncEnAugAccelProblemRun(ProblemRun):
         sampled_mat.preprocess()
         op_Ahat_inv = lambda x: sampled_mat.solve(x)
         op_Ahat = lambda x: sampled_mat.apply(x)
-        return aug.en_aug_accel_shift_trunc(self.samples_per_sub_run, self.samples_per_system,
-                                            b, self.order, op_Ahat_inv, op_Ahat,
-                                            bootstrap_distribution, self.eps,
-                                            self.q_distribution, self.op_C)
+        if self.window_funcs == 'hard':
+            return aug.en_aug_accel_shift_trunc(self.samples_per_sub_run, self.samples_per_system,
+                                                b, self.order, op_Ahat_inv, op_Ahat,
+                                                bootstrap_distribution, self.eps,
+                                                self.q_distribution, self.op_C,
+                                                aug.hard_shifted_window_func_numerator,
+                                                aug.hard_shifted_window_func_denominator)
+        else:
+            return aug.en_aug_accel_shift_trunc(self.samples_per_sub_run, self.samples_per_system,
+                                                b, self.order, op_Ahat_inv, op_Ahat,
+                                                bootstrap_distribution, self.eps,
+                                                self.q_distribution, self.op_C)
 
 
 class ProblemRunResults:
@@ -146,7 +201,7 @@ class ProblemRunResults:
 
     def print(self):
         for i in range(0, len(self.norm_names)):
-            print(f'{self.name}: {self.norm_names[i]}: {self.mean_errs[i]} +- {2 * self.std_errs[i]}')
+            print(f'{self.name}: {self.norm_names[i]}: {self.mean_errs[i]:#.4g} +- {2 * self.std_errs[i]:#.4g}')
 
 
 class DiagnosticRun:
@@ -165,12 +220,9 @@ class DiagnosticRun:
         tru_mat.preprocess()
 
         for run in self.runs:
-            print(f'Running {run.name}...')
-
             errs = np.zeros((len(run.norms), run.num_sub_runs))
 
-            for i in range(0, run.num_sub_runs):
-                print(f'Subrun {i + 1}/{run.num_sub_runs}...')
+            for i in tqdm(range(0, run.num_sub_runs), desc=run.name):
 
                 # Draw rhs from Bayes prior distribution
                 b = self.problem.b_distribution.draw_sample()

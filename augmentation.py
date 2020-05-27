@@ -60,7 +60,7 @@ class MatrixDistributionInterface:
         pass
 
 
-def base_omega(N, k):
+def soft_window_func_numerator(N, k):
     if k < N:
         return k
     elif k == N:
@@ -69,7 +69,14 @@ def base_omega(N, k):
         return 0
 
 
-def base_omega_denom(N, k):
+def hard_window_func_numerator(N, k):
+    if k <= N:
+        return k
+    else:
+        return 0
+
+
+def soft_window_func_denominator(N, k):
     if k < N:
         return k + 1
     elif k == N:
@@ -78,19 +85,39 @@ def base_omega_denom(N, k):
         return 0
 
 
-def base_omega_shifted(N, k, alpha):
+def hard_window_func_denominator(N, k):
+    if k <= N:
+        return k + 1
+    else:
+        return 0
+
+
+def soft_shifted_window_func_numerator(N, k, alpha):
     if k <= N:
         return (k + 1) - sum((1 - 1 / alpha) ** (j - k) for j in range(k, N + 1))
     else:
         return 0
 
 
-def base_omega_shifted_denom(N, k):
+def hard_shifted_window_func_numerator(N, k, alpha):
     if k <= N:
-        return (k + 1)
+        return (k + 1) - alpha
     else:
         return 0
 
+
+def soft_shifted_window_func_denominator(N, k, alpha):
+    if k <= N:
+        return k + 1
+    else:
+        return 0
+
+
+def hard_shifted_window_func_denominator(N, k, alpha):
+    if k <= N:
+        return k + 1
+    else:
+        return 0
 
 # Implement baseline operator augmentation
 def aug_fac(num_system_samples: int,
@@ -233,7 +260,9 @@ def en_aug_trunc_fac(num_system_samples: int,
                      op_Ahat_inv,
                      op_Ahat,
                      bootstrap_mat_dist: MatrixDistributionInterface,
-                     q_dist: VectorDistributionInterface = None):
+                     q_dist: VectorDistributionInterface = None,
+                     window_func_numerator=soft_window_func_numerator,
+                     window_func_denominator=soft_window_func_denominator):
 
     numerator = 0.0
     denominator = 0.0
@@ -258,8 +287,8 @@ def en_aug_trunc_fac(num_system_samples: int,
             Ahat_inv_q = op_Ahat_inv(q)
             dots = [np.dot(Ahat_inv_q, pows_q[k]) for k in range(0, order + 1)]
 
-            numerator += sum(base_omega(order, k) * dots[k] for k in range(0, order + 1))
-            denominator += sum(base_omega_denom(order, k) * dots[k] for k in range(0, order + 1))
+            numerator += sum(window_func_numerator(order, k) * dots[k] for k in range(0, order + 1))
+            denominator += sum(window_func_denominator(order, k) * dots[k] for k in range(0, order + 1))
 
     return numerator / denominator
 
@@ -272,7 +301,9 @@ def en_aug_trunc(num_system_samples: int,
                  op_Ahat,
                  bootstrap_mat_dist: MatrixDistributionInterface,
                  q_dist: VectorDistributionInterface = None,
-                 op_C = lambda x: x):
+                 op_C = lambda x: x,
+                 window_func_numerator=soft_window_func_numerator,
+                 window_func_denominator=soft_window_func_denominator):
 
     beta = en_aug_trunc_fac(num_system_samples,
                             num_per_system_samples,
@@ -281,7 +312,9 @@ def en_aug_trunc(num_system_samples: int,
                             op_Ahat_inv,
                             op_Ahat,
                             bootstrap_mat_dist,
-                            q_dist)
+                            q_dist,
+                            window_func_numerator,
+                            window_func_denominator)
 
     return pre_en_aug_trunc(beta, rhs, op_Ahat_inv, op_C)
 
@@ -304,7 +337,9 @@ def en_aug_shift_trunc_fac(num_system_samples: int,
                            op_Ahat_inv,
                            op_Ahat,
                            bootstrap_mat_dist: MatrixDistributionInterface,
-                           q_dist: VectorDistributionInterface = None):
+                           q_dist: VectorDistributionInterface = None,
+                           window_func_numerator=soft_shifted_window_func_numerator,
+                           window_func_denominator=soft_shifted_window_func_denominator):
 
     numerator = 0.0
     denominator = 0.0
@@ -329,8 +364,10 @@ def en_aug_shift_trunc_fac(num_system_samples: int,
             Ahat_inv_q = op_Ahat_inv(q)
             dots = [np.dot(Ahat_inv_q, pows_q[k]) for k in range(0, order + 1)]
 
-            numerator += sum(alpha ** (-k - 2) * base_omega_shifted(order, k, alpha) * dots[k] for k in range(0, order + 1))
-            denominator += sum(alpha ** (-k - 2) * base_omega_shifted_denom(order, k) * dots[k] for k in range(0, order + 1))
+            numerator += sum(alpha ** (-k - 2) * soft_shifted_window_func_numerator(order, k, alpha) *
+                             dots[k] for k in range(0, order + 1))
+            denominator += sum(alpha ** (-k - 2) * soft_shifted_window_func_denominator(order, k, alpha) *
+                               dots[k] for k in range(0, order + 1))
 
     return min(max(numerator / denominator, 0.0), 1.0)
 
@@ -344,7 +381,9 @@ def en_aug_shift_trunc(num_system_samples: int,
                        op_Ahat,
                        bootstrap_mat_dist: MatrixDistributionInterface,
                        q_dist: VectorDistributionInterface = None,
-                       op_C = lambda x: x):
+                       op_C = lambda x: x,
+                       window_func_numerator=soft_shifted_window_func_numerator,
+                       window_func_denominator=soft_shifted_window_func_denominator):
 
     beta = en_aug_shift_trunc_fac(num_system_samples,
                                   num_per_system_samples,
@@ -354,7 +393,9 @@ def en_aug_shift_trunc(num_system_samples: int,
                                   op_Ahat_inv,
                                   op_Ahat,
                                   bootstrap_mat_dist,
-                                  q_dist)
+                                  q_dist,
+                                  window_func_numerator,
+                                  window_func_denominator)
 
     return pre_en_aug_shift_trunc(beta, rhs, op_Ahat_inv, op_C)
 
@@ -402,7 +443,9 @@ def en_aug_accel_shift_trunc_fac(num_system_samples: int,
                                  op_Ahat_inv,
                                  op_Ahat,
                                  bootstrap_mat_dist: MatrixDistributionInterface,
-                                 q_dist: VectorDistributionInterface = None):
+                                 q_dist: VectorDistributionInterface = None,
+                                 window_func_numerator=soft_shifted_window_func_numerator,
+                                 window_func_denominator=soft_shifted_window_func_denominator):
 
     numerator = 0.0
     denominator = 0.0
@@ -429,8 +472,10 @@ def en_aug_accel_shift_trunc_fac(num_system_samples: int,
             Ahat_inv_q = op_Ahat_inv(q)
             dots = [np.dot(Ahat_inv_q, pows_q[k]) for k in range(0, order + 1)]
 
-            numerator += sum(alpha ** (-k - 2) * base_omega_shifted(order, k, alpha) * dots[k] for k in range(0, order + 1))
-            denominator += sum(alpha ** (-k - 2) * base_omega_shifted_denom(order, k) * dots[k] for k in range(0, order + 1))
+            numerator += sum(alpha ** (-k - 2) * window_func_numerator(order, k, alpha) *
+                             dots[k] for k in range(0, order + 1))
+            denominator += sum(alpha ** (-k - 2) * window_func_denominator(order, k, alpha) *
+                               dots[k] for k in range(0, order + 1))
 
     return min(max(numerator / denominator, 0.0), 1.0)
 
@@ -444,7 +489,9 @@ def en_aug_accel_shift_trunc(num_system_samples: int,
                              bootstrap_mat_dist: MatrixDistributionInterface,
                              eps=0.01,
                              q_dist: VectorDistributionInterface = None,
-                             op_C = lambda x: x):
+                             op_C = lambda x: x,
+                             window_func_numerator=soft_shifted_window_func_numerator,
+                             window_func_denominator=soft_shifted_window_func_denominator):
 
     beta = en_aug_accel_shift_trunc_fac(num_system_samples,
                                         num_per_system_samples,
@@ -454,7 +501,9 @@ def en_aug_accel_shift_trunc(num_system_samples: int,
                                         op_Ahat_inv,
                                         op_Ahat,
                                         bootstrap_mat_dist,
-                                        q_dist)
+                                        q_dist,
+                                        window_func_numerator,
+                                        window_func_denominator)
 
     return pre_en_aug_accel_shift_trunc(beta, rhs, op_Ahat_inv, op_C)
 
