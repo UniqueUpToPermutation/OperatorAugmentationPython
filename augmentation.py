@@ -5,18 +5,18 @@ from scipy.sparse.linalg import spsolve
 
 class VectorPairDistributionInterface:
     def are_equal(self) -> bool:
-        return False
+        raise Exception('are_equal not implemented!')
 
     def draw_sample(self) -> (np.ndarray, np.ndarray):
-        return None, None
+        raise Exception('draw_sample not implemented!')
 
 
 class VectorDistributionInterface:
     def draw_sample(self) -> np.ndarray:
-        return None
+        raise Exception('draw_sample not implemented!')
 
 
-class LambdaVectorDistribution(VectorDistributionInterface):
+class VectorDistributionFromLambda(VectorDistributionInterface):
     def __init__(self, sample_func):
         self.sample_func = sample_func
 
@@ -24,7 +24,7 @@ class LambdaVectorDistribution(VectorDistributionInterface):
         return self.sample_func()
 
 
-class LambdaIdenticalVectorPairDistribution(VectorPairDistributionInterface):
+class IdenticalVectorPairDistributionFromLambda(VectorPairDistributionInterface):
     def __init__(self, sample_func):
         self.sample_func = sample_func
 
@@ -33,14 +33,18 @@ class LambdaIdenticalVectorPairDistribution(VectorPairDistributionInterface):
 
     def draw_sample(self) -> (np.ndarray, np.ndarray):
         sample = self.sample_func()
-        return (sample, sample)
+        return sample, sample
+
 
 class MatrixSampleInterface:
     def preprocess(self):
         pass
 
     def solve(self, b: np.ndarray) -> np.ndarray:
-        return b
+        raise Exception('Solve not implemented!')
+
+    def apply(self, b: np.ndarray) -> np.ndarray:
+        raise Exception('Apply not implemented!')
 
 
 class DefaultMatrixSample(MatrixSampleInterface):
@@ -51,15 +55,9 @@ class DefaultMatrixSample(MatrixSampleInterface):
         return spsolve(self.matrix, b)
 
 
-
 class MatrixDistributionInterface:
     def draw_sample(self) -> MatrixSampleInterface:
         pass
-
-
-class LambdaDistributionInterface:
-    def draw_sample(self):
-        return lambda x: x
 
 
 def base_omega(N, k):
@@ -234,7 +232,7 @@ def en_aug_trunc_fac(num_system_samples: int,
                      order: int,
                      op_Ahat_inv,
                      op_Ahat,
-                     bootstrap_mat_dist: LambdaDistributionInterface,
+                     bootstrap_mat_dist: MatrixDistributionInterface,
                      q_dist: VectorDistributionInterface = None):
 
     numerator = 0.0
@@ -251,7 +249,7 @@ def en_aug_trunc_fac(num_system_samples: int,
                 q = q_dist.draw_sample()
 
             def op(x):
-                return x - Ahat_bootstrap(op_Ahat_inv(x))
+                return x - Ahat_bootstrap.apply(op_Ahat_inv(x))
 
             pows_q = [q]
             for i in range(1, order + 1):
@@ -272,7 +270,7 @@ def en_aug_trunc(num_system_samples: int,
                  order: int,
                  op_Ahat_inv,
                  op_Ahat,
-                 bootstrap_mat_dist: LambdaDistributionInterface,
+                 bootstrap_mat_dist: MatrixDistributionInterface,
                  q_dist: VectorDistributionInterface = None,
                  op_C = lambda x: x):
 
@@ -305,7 +303,7 @@ def en_aug_shift_trunc_fac(num_system_samples: int,
                            alpha,
                            op_Ahat_inv,
                            op_Ahat,
-                           bootstrap_mat_dist: LambdaDistributionInterface,
+                           bootstrap_mat_dist: MatrixDistributionInterface,
                            q_dist: VectorDistributionInterface = None):
 
     numerator = 0.0
@@ -322,7 +320,7 @@ def en_aug_shift_trunc_fac(num_system_samples: int,
                 q = q_dist.draw_sample()
 
             def op(x):
-                return x - alpha * Ahat_bootstrap(op_Ahat_inv(x))
+                return x - alpha * Ahat_bootstrap.apply(op_Ahat_inv(x))
 
             pows_q = [q]
             for i in range(1, order + 1):
@@ -344,7 +342,7 @@ def en_aug_shift_trunc(num_system_samples: int,
                        alpha,
                        op_Ahat_inv,
                        op_Ahat,
-                       bootstrap_mat_dist: LambdaDistributionInterface,
+                       bootstrap_mat_dist: MatrixDistributionInterface,
                        q_dist: VectorDistributionInterface = None,
                        op_C = lambda x: x):
 
@@ -370,10 +368,10 @@ def pre_en_aug_shift_trunc(beta,
     return xhat - augmentation
 
 
-def mod_pow_method(op_Ahat_bootstrap, op_Ahat_inv, eps, dimension):
+def mod_pow_method(Ahat_bootstrap, op_Ahat_inv, eps, dimension):
     v_last = np.random.randn(dimension)
     a_inv_v_last = op_Ahat_inv(v_last)
-    v = op_Ahat_bootstrap(a_inv_v_last)
+    v = Ahat_bootstrap.apply(a_inv_v_last)
     a_inv_v = op_Ahat_inv(v)
 
     last_eig = np.dot(a_inv_v, v) / np.dot(a_inv_v_last, v_last)
@@ -382,7 +380,7 @@ def mod_pow_method(op_Ahat_bootstrap, op_Ahat_inv, eps, dimension):
         v_last = v
         a_inv_v_last = a_inv_v
 
-        v = op_Ahat_bootstrap(a_inv_v_last)
+        v = Ahat_bootstrap.apply(a_inv_v_last)
         a_inv_v = op_Ahat_inv(v)
 
         eig = np.dot(a_inv_v, v) / np.dot(a_inv_v_last, v_last)
@@ -403,7 +401,7 @@ def en_aug_accel_shift_trunc_fac(num_system_samples: int,
                                  eps,
                                  op_Ahat_inv,
                                  op_Ahat,
-                                 bootstrap_mat_dist: LambdaDistributionInterface,
+                                 bootstrap_mat_dist: MatrixDistributionInterface,
                                  q_dist: VectorDistributionInterface = None):
 
     numerator = 0.0
@@ -422,7 +420,7 @@ def en_aug_accel_shift_trunc_fac(num_system_samples: int,
                 q = q_dist.draw_sample()
 
             def op(x):
-                return x - alpha * Ahat_bootstrap(op_Ahat_inv(x))
+                return x - alpha * Ahat_bootstrap.apply(op_Ahat_inv(x))
 
             pows_q = [q]
             for i in range(1, order + 1):
@@ -443,7 +441,7 @@ def en_aug_accel_shift_trunc(num_system_samples: int,
                              order: int,
                              op_Ahat_inv,
                              op_Ahat,
-                             bootstrap_mat_dist: LambdaDistributionInterface,
+                             bootstrap_mat_dist: MatrixDistributionInterface,
                              eps=0.01,
                              q_dist: VectorDistributionInterface = None,
                              op_C = lambda x: x):

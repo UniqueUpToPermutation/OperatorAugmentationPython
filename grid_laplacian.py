@@ -59,8 +59,8 @@ def run_test(tru_a, runs, samples_per_run, std_dev):
 
     # Let the right hand side be a complete random realization
     b_dist = lambda: b
-    q_u_dist = aug.LambdaIdenticalVectorPairDistribution(b_dist)
-    q_dist = aug.LambdaVectorDistribution(b_dist)
+    q_u_dist = aug.IdenticalVectorPairDistributionFromLambda(b_dist)
+    q_dist = aug.VectorDistributionFromLambda(b_dist)
 
     tru_dist = GridLaplacianDistribution(tru_a, std_dev)
     tru_mat = GridLaplacianMatrixSample(tru_dist.convert_to_matrix(tru_a))
@@ -133,7 +133,7 @@ def run_test(tru_a, runs, samples_per_run, std_dev):
 
 def main():
     n = 128
-    run_test(np.ones(n), 100, 100, 0.25)
+    run_test(np.ones(n), 100, 100, 0.5)
 
 
 if __name__ == '__main__':

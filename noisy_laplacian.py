@@ -41,17 +41,15 @@ class NoisyLaplacianDistribution(aug.MatrixDistributionInterface):
         return aug.DefaultMatrixSample(self.convert_to_matrix(noisy_g))
 
 
-def run_test(tru_graph, runs, samples_per_run, boundary):
+def run_test(tru_graph, runs, samples_per_run, boundary, variance):
 
     interior = list(set(range(0, len(tru_graph))).difference(boundary))
     interior_dimension = len(interior)
 
     # Let the right hand side be a complete random realization
     b_dist = lambda: np.random.randn(interior_dimension)
-    q_u_dist = aug.LambdaIdenticalVectorPairDistribution(b_dist)
-    q_dist = aug.LambdaVectorDistribution(b_dist)
-
-    variance = 0.5
+    q_u_dist = aug.IdenticalVectorPairDistributionFromLambda(b_dist)
+    q_dist = aug.VectorDistributionFromLambda(b_dist)
 
     tru_dist = NoisyLaplacianDistribution(tru_graph, interior, variance)
     tru_mat = tru_dist.convert_to_matrix(tru_graph)
@@ -126,12 +124,12 @@ def main():
     graph = nx.read_edgelist("data/aves-wildbird-network-1/aves-wildbird-network-1.edges",
                              comments="%", data=(('weight', float),))
 
-    boundary = {4, 20, 35, 80, 100, 110, 160}
+    boundary = {4, 20, 35, 80, 100, 110}
 
     nx.draw(graph, node_size=40)
     plt.show()
 
-    run_test(graph, 100, 10, boundary)
+    run_test(graph, 100, 10, boundary, 0.5)
 
 
 if __name__ == "__main__":
