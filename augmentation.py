@@ -55,9 +55,30 @@ class DefaultMatrixSample(MatrixSampleInterface):
         return spsolve(self.matrix, b)
 
 
-class MatrixDistributionInterface:
-    def draw_sample(self) -> MatrixSampleInterface:
+# Draws from the joint distribution of (Ahat, Mhat) where Ahat x = Mhat b
+class DualMatrixDistributionInterface:
+    def draw_dual_sample(self) -> (MatrixSampleInterface, MatrixSampleInterface):
+        raise Exception('draw_sample not implemented!')
+
+
+class IdentityMatrixSample(MatrixSampleInterface):
+    def preprocess(self):
         pass
+
+    def solve(self, b: np.ndarray) -> np.ndarray:
+        return b
+
+    def apply(self, b: np.ndarray) -> np.ndarray:
+        return b
+
+
+# Draws from the distribution of Ahat where Ahat x = b
+class MatrixDistributionInterface(DualMatrixDistributionInterface):
+    def draw_sample(self) -> MatrixSampleInterface:
+        raise Exception('draw_sample not implemented!')
+
+    def draw_dual_sample(self) -> (MatrixSampleInterface, MatrixSampleInterface):
+        return self.draw_sample(), IdentityMatrixSample()
 
 
 def soft_window_func_numerator(N, k):
@@ -197,14 +218,14 @@ def en_aug_fac(num_system_samples: int,
                num_per_system_samples: int,
                dimension: int,
                op_Ahat,
-               bootstrap_mat_dist: MatrixDistributionInterface,
+               bootstrap_mat_dist: DualMatrixDistributionInterface,
                q_dist: VectorDistributionInterface = None):
 
     numerator = 0.0
     denominator = 0.0
 
     for i_system in range(0, num_system_samples):
-        Ahat_bootstrap = bootstrap_mat_dist.draw_sample()
+        Ahat_bootstrap, Mhat_bootstrap = bootstrap_mat_dist.draw_dual_sample()
         Ahat_bootstrap.preprocess()
 
         for i_rhs in range(0, num_per_system_samples):
@@ -213,6 +234,8 @@ def en_aug_fac(num_system_samples: int,
                 q = np.random.randn(dimension)
             else:
                 q = q_dist.draw_sample()
+
+            q = Mhat_bootstrap.apply(q)
 
             Ahat_bootstrap_inv_q = Ahat_bootstrap.solve(q)
             term1 = np.dot(Ahat_bootstrap_inv_q, op_Ahat(Ahat_bootstrap_inv_q))
@@ -229,7 +252,7 @@ def en_aug(num_system_samples: int,
            rhs: np.ndarray,
            op_Ahat_inv,
            op_Ahat,
-           bootstrap_mat_dist: MatrixDistributionInterface,
+           bootstrap_mat_dist: DualMatrixDistributionInterface,
            q_dist: VectorDistributionInterface = None,
            op_C = lambda x: x):
 
@@ -259,7 +282,7 @@ def en_aug_trunc_fac(num_system_samples: int,
                      order: int,
                      op_Ahat_inv,
                      op_Ahat,
-                     bootstrap_mat_dist: MatrixDistributionInterface,
+                     bootstrap_mat_dist: DualMatrixDistributionInterface,
                      q_dist: VectorDistributionInterface = None,
                      window_func_numerator=soft_window_func_numerator,
                      window_func_denominator=soft_window_func_denominator):
@@ -268,7 +291,7 @@ def en_aug_trunc_fac(num_system_samples: int,
     denominator = 0.0
 
     for i_system in range(0, num_system_samples):
-        Ahat_bootstrap = bootstrap_mat_dist.draw_sample()
+        Ahat_bootstrap, Mhat_bootstrap = bootstrap_mat_dist.draw_dual_sample()
 
         for i_rhs in range(0, num_per_system_samples):
 
@@ -276,6 +299,8 @@ def en_aug_trunc_fac(num_system_samples: int,
                 q = np.random.randn(dimension)
             else:
                 q = q_dist.draw_sample()
+
+            q = Mhat_bootstrap.apply(q)
 
             def op(x):
                 return x - Ahat_bootstrap.apply(op_Ahat_inv(x))
@@ -299,7 +324,7 @@ def en_aug_trunc(num_system_samples: int,
                  order: int,
                  op_Ahat_inv,
                  op_Ahat,
-                 bootstrap_mat_dist: MatrixDistributionInterface,
+                 bootstrap_mat_dist: DualMatrixDistributionInterface,
                  q_dist: VectorDistributionInterface = None,
                  op_C = lambda x: x,
                  window_func_numerator=soft_window_func_numerator,
@@ -336,7 +361,7 @@ def en_aug_shift_trunc_fac(num_system_samples: int,
                            alpha,
                            op_Ahat_inv,
                            op_Ahat,
-                           bootstrap_mat_dist: MatrixDistributionInterface,
+                           bootstrap_mat_dist: DualMatrixDistributionInterface,
                            q_dist: VectorDistributionInterface = None,
                            window_func_numerator=soft_shifted_window_func_numerator,
                            window_func_denominator=soft_shifted_window_func_denominator):
@@ -345,7 +370,7 @@ def en_aug_shift_trunc_fac(num_system_samples: int,
     denominator = 0.0
 
     for i_system in range(0, num_system_samples):
-        Ahat_bootstrap = bootstrap_mat_dist.draw_sample()
+        Ahat_bootstrap, Mhat_bootstrap = bootstrap_mat_dist.draw_dual_sample()
 
         for i_rhs in range(0, num_per_system_samples):
 
@@ -353,6 +378,8 @@ def en_aug_shift_trunc_fac(num_system_samples: int,
                 q = np.random.randn(dimension)
             else:
                 q = q_dist.draw_sample()
+
+            q = Mhat_bootstrap.apply(q)
 
             def op(x):
                 return x - alpha * Ahat_bootstrap.apply(op_Ahat_inv(x))
@@ -379,7 +406,7 @@ def en_aug_shift_trunc(num_system_samples: int,
                        alpha,
                        op_Ahat_inv,
                        op_Ahat,
-                       bootstrap_mat_dist: MatrixDistributionInterface,
+                       bootstrap_mat_dist: DualMatrixDistributionInterface,
                        q_dist: VectorDistributionInterface = None,
                        op_C = lambda x: x,
                        window_func_numerator=soft_shifted_window_func_numerator,
@@ -442,7 +469,7 @@ def en_aug_accel_shift_trunc_fac(num_system_samples: int,
                                  eps,
                                  op_Ahat_inv,
                                  op_Ahat,
-                                 bootstrap_mat_dist: MatrixDistributionInterface,
+                                 bootstrap_mat_dist: DualMatrixDistributionInterface,
                                  q_dist: VectorDistributionInterface = None,
                                  window_func_numerator=soft_shifted_window_func_numerator,
                                  window_func_denominator=soft_shifted_window_func_denominator):
@@ -451,7 +478,7 @@ def en_aug_accel_shift_trunc_fac(num_system_samples: int,
     denominator = 0.0
 
     for i_system in range(0, num_system_samples):
-        Ahat_bootstrap = bootstrap_mat_dist.draw_sample()
+        Ahat_bootstrap, Mhat_bootstrap = bootstrap_mat_dist.draw_dual_sample()
 
         alpha = mod_pow_method(Ahat_bootstrap, op_Ahat_inv, eps, dimension)
 
@@ -461,6 +488,8 @@ def en_aug_accel_shift_trunc_fac(num_system_samples: int,
                 q = np.random.randn(dimension)
             else:
                 q = q_dist.draw_sample()
+
+            q = Mhat_bootstrap.apply(q)
 
             def op(x):
                 return x - alpha * Ahat_bootstrap.apply(op_Ahat_inv(x))
@@ -486,7 +515,7 @@ def en_aug_accel_shift_trunc(num_system_samples: int,
                              order: int,
                              op_Ahat_inv,
                              op_Ahat,
-                             bootstrap_mat_dist: MatrixDistributionInterface,
+                             bootstrap_mat_dist: DualMatrixDistributionInterface,
                              eps=0.01,
                              q_dist: VectorDistributionInterface = None,
                              op_C = lambda x: x,
