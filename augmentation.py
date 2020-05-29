@@ -54,6 +54,9 @@ class DefaultMatrixSample(MatrixSampleInterface):
     def solve(self, b: np.ndarray):
         return spsolve(self.matrix, b)
 
+    def apply(self, b: np.ndarray) -> np.ndarray:
+        return self.matrix @ b
+
 
 # Draws from the joint distribution of (Ahat, Mhat) where Ahat x = Mhat b
 class DualMatrixDistributionInterface:

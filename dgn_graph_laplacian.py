@@ -24,20 +24,6 @@ def add_noise_to_graph(graph: nx.Graph, variance):
     return g_new
 
 
-class GraphLaplacianMatrixSample(aug.MatrixSampleInterface):
-    def __init__(self, mat):
-        self.matrix = mat
-
-    def preprocess(self):
-        pass
-
-    def solve(self, b: np.ndarray) -> np.ndarray:
-        return spla.spsolve(self.matrix, b)
-
-    def apply(self, b: np.ndarray) -> np.ndarray:
-        return self.matrix @ b
-
-
 class GraphLaplacianParameters:
     def __init__(self, graph):
         self.graph = graph
@@ -63,7 +49,7 @@ class GraphLaplacianDistribution(dgn.MatrixParameterDistribution):
     def convert(self, matrix_parameters) -> aug.MatrixSampleInterface:
         lap = nx.linalg.laplacian_matrix(matrix_parameters.graph)
         sub_lap = lap[self.interior, :][:, self.interior]
-        return GraphLaplacianMatrixSample(sub_lap)
+        return aug.DefaultMatrixSample(sub_lap)
 
     def get_dimension(self) -> int:
         return len(self.interior)

@@ -11,11 +11,22 @@ class MatrixParameterDistribution(aug.MatrixDistributionInterface):
     def draw_parameters(self):
         raise Exception('draw not implemented!')
 
+    # Sample only the A matrix for Ax = b
     def draw_sample(self) -> aug.MatrixSampleInterface:
         return self.convert(self.draw_parameters())
 
+    # Sample both the A and M matrices in Ax = Mb
+    def draw_dual_sample(self) -> (aug.MatrixSampleInterface, aug.MatrixSampleInterface):
+        params = self.draw_parameters()
+        return self.convert(params), self.convert_auxiliary(params)
+
+    # Convert matrix parameters into an actual matrix
     def convert(self, matrix_parameters) -> aug.MatrixSampleInterface:
         raise Exception('convert not implemented!')
+
+    # Convert matrix
+    def convert_auxiliary(self, matrix_parameters) -> aug.MatrixSampleInterface:
+        return aug.IdentityMatrixSample()
 
     def get_dimension(self) -> int:
         raise Exception('get_dimension not implemented!')
