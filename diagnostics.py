@@ -203,16 +203,22 @@ class TruncEnAugAccelProblemRun(ProblemRun):
 
 
 class ProblemRunResults:
-    def __init__(self, run: ProblemRun, raw_err_data: np.ndarray):
+    def __init__(self, run: ProblemRun, raw_err_data: np.ndarray, solution_norms: np.ndarray):
         self.name = run.name
         self.norm_names = run.norm_names
         self.raw_err_data = raw_err_data
         self.mean_errs = np.mean(raw_err_data, axis=1)
         self.std_errs = np.std(raw_err_data, axis=1) / np.sqrt(run.num_sub_runs)
+        self.mean_sol_norms = np.mean(solution_norms, axis=1)
+        self.relative_errs = self.mean_errs / self.mean_sol_norms
+        self.relative_std_errs = self.std_errs / self.mean_sol_norms
 
     def print(self):
         for i in range(0, len(self.norm_names)):
             print(f'{self.name}: {self.norm_names[i]}: {self.mean_errs[i]:#.4g} +- {2 * self.std_errs[i]:#.4g}')
+            print(f'{self.name}: {self.norm_names[i]} (Relative): {self.relative_errs[i]:#.4g} +-'
+                  f' {2 * self.relative_std_errs[i]:#.4g}')
+
 
 
 class DiagnosticRun:
@@ -232,6 +238,7 @@ class DiagnosticRun:
 
         for run in self.runs:
             errs = np.zeros((len(run.norms), run.num_sub_runs))
+            sol_norms = np.zeros((len(run.norms), run.num_sub_runs))
 
             for i in tqdm(range(0, run.num_sub_runs), desc=run.name):
 
@@ -250,8 +257,9 @@ class DiagnosticRun:
                 # Get error from dis
                 for i_norm in range(0, len(run.norms)):
                     errs[i_norm, i] = run.norms[i_norm](result - tru_solution)
+                    sol_norms[i_norm, i] = run.norms[i_norm](tru_solution)
 
-            self.results.append(ProblemRunResults(run, errs))
+            self.results.append(ProblemRunResults(run, errs, sol_norms))
 
     def print_results(self):
         for result in self.results:
