@@ -101,13 +101,13 @@ class LaplacianFromRandomWalkDistribution(dgn.MatrixParameterDistribution):
     def convert(self, matrix_parameters) -> aug.MatrixSampleInterface:
         lap = nx.linalg.laplacian_matrix(matrix_parameters.graph)
         adj = nx.linalg.adjacency_matrix(matrix_parameters.graph)
-        return aug.DefaultMatrixSample(lap + (1 - self.gamma) * adj)
+        return aug.DefaultSparseMatrixSample(lap + (1 - self.gamma) * adj)
 
     # Returns D
     def convert_auxiliary(self, matrix_parameters) -> aug.MatrixSampleInterface:
         n = self.get_dimension()
         ds = [d for (v, d) in self.true_graph.degree(weight='weight')]
-        return aug.DefaultMatrixSample(sci.spdiags(ds, 0, n, n))
+        return aug.DefaultSparseMatrixSample(sci.spdiags(ds, 0, n, n))
 
     def get_dimension(self) -> int:
         return len(self.true_graph)

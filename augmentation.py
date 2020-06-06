@@ -47,7 +47,7 @@ class MatrixSampleInterface:
         raise Exception('Apply not implemented!')
 
 
-class DefaultMatrixSample(MatrixSampleInterface):
+class DefaultSparseMatrixSample(MatrixSampleInterface):
     def __init__(self, mat: spla.spmatrix):
         self.matrix = mat
 
@@ -247,7 +247,7 @@ def en_aug_fac(num_system_samples: int,
             numerator += term1 - term2
             denominator += term1
 
-    return numerator / denominator
+    return max(numerator / denominator, 0.0)
 
 
 def en_aug(num_system_samples: int,
@@ -270,9 +270,9 @@ def en_aug(num_system_samples: int,
 
 
 def pre_en_aug(beta,
-                 rhs: np.ndarray,
-                 op_Ahat_inv,
-                 op_C = lambda x: x):
+             rhs: np.ndarray,
+             op_Ahat_inv,
+             op_C = lambda x: x):
     xhat = op_Ahat_inv(rhs)
     augmentation = beta * op_Ahat_inv(op_C(rhs))
     return xhat - augmentation
@@ -452,6 +452,7 @@ def mod_pow_method(Ahat_bootstrap, op_Ahat_inv, eps, dimension):
         a_inv_v_last = a_inv_v
 
         v = Ahat_bootstrap.apply(a_inv_v_last)
+        v = v / np.linalg.norm(v)
         a_inv_v = op_Ahat_inv(v)
 
         eig = np.dot(a_inv_v, v) / np.dot(a_inv_v_last, v_last)

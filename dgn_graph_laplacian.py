@@ -49,7 +49,7 @@ class GraphLaplacianDistribution(dgn.MatrixParameterDistribution):
     def convert(self, matrix_parameters) -> aug.MatrixSampleInterface:
         lap = nx.linalg.laplacian_matrix(matrix_parameters.graph)
         sub_lap = lap[self.interior, :][:, self.interior]
-        return aug.DefaultMatrixSample(sub_lap)
+        return aug.DefaultSparseMatrixSample(sub_lap)
 
     def get_dimension(self) -> int:
         return len(self.interior)

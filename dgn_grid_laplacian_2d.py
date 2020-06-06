@@ -60,7 +60,7 @@ class GridLaplacianDistribution2D(dgn.MatrixParameterDistribution):
         return GridLaplacianParameters2D(noisy_a)
 
     def convert(self, matrix_parameters) -> aug.MatrixSampleInterface:
-        return aug.DefaultMatrixSample(form_laplacian2d(matrix_parameters.true_a, self.h))
+        return aug.DefaultSparseMatrixSample(form_laplacian2d(matrix_parameters.true_a, self.h))
 
     def get_dimension(self) -> int:
         return self.dimension

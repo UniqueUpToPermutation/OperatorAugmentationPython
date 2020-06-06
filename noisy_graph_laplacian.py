@@ -38,7 +38,7 @@ class NoisyLaplacianDistribution(aug.MatrixDistributionInterface):
 
     def draw_sample(self) -> aug.MatrixSampleInterface:
         noisy_g = self.draw_graph_sample()
-        return aug.DefaultMatrixSample(self.convert_to_matrix(noisy_g))
+        return aug.DefaultSparseMatrixSample(self.convert_to_matrix(noisy_g))
 
 
 def run_test(tru_graph, runs, samples_per_run, boundary, variance):

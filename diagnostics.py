@@ -24,7 +24,7 @@ class MatrixParameterDistribution(aug.MatrixDistributionInterface):
     def convert(self, matrix_parameters) -> aug.MatrixSampleInterface:
         raise Exception('convert not implemented!')
 
-    # Convert matrix
+    # Convert matrix parameters into auxilliary matrix M
     def convert_auxiliary(self, matrix_parameters) -> aug.MatrixSampleInterface:
         return aug.IdentityMatrixSample()
 
@@ -39,6 +39,7 @@ class ProblemDefinition:
             lambda: np.random.randn(self.tru_distribution.get_dimension()))
 
         self.tru_mat = self.tru_distribution.convert(self.tru_distribution.matrix_parameters)
+        self.tru_aux = self.tru_distribution.convert_auxiliary(self.tru_distribution.matrix_parameters)
         self.energy_norm_squared = lambda x: np.dot(x, self.tru_mat.apply(x))
         self.l2_norm_squared = lambda x: np.dot(x, x)
 
@@ -75,7 +76,9 @@ class NaiveProblemRun(ProblemRun):
                 b: np.ndarray):
         sampled_mat = bootstrap_distribution.convert(bootstrap_distribution.matrix_parameters)
         sampled_mat.preprocess()
-        return sampled_mat.solve(b)
+        aux_mat = bootstrap_distribution.convert_auxiliary(bootstrap_distribution.matrix_parameters)
+        aux_mat.preprocess()
+        return sampled_mat.solve(aux_mat.apply(b))
 
 
 class AugProblemRun(ProblemRun):
@@ -234,6 +237,7 @@ class DiagnosticRun:
         # Preprocess true solution if necessary
         tru_mat = self.problem.tru_mat
         tru_distribution = self.problem.tru_distribution
+        tru_aux = self.problem.tru_aux
         tru_mat.preprocess()
 
         for run in self.runs:
@@ -245,8 +249,8 @@ class DiagnosticRun:
                 # Draw rhs from Bayes prior distribution
                 b = self.problem.b_distribution.draw_sample()
 
-                # Solve the true linear system
-                tru_solution = tru_mat.solve(b)
+                # Solve the true linear system b
+                tru_solution = tru_mat.solve(tru_aux.apply(b))
 
                 # Perform bootstrap operator augmentation
                 noisy_parameters = self.problem.tru_distribution.draw_parameters()
