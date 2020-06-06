@@ -93,51 +93,51 @@ def main():
     run = dgn.EnAugProblemRun(problem_def)
     run.num_sub_runs = 100
     run.samples_per_sub_run = 100
-    #diagnostics.add_run(run)
+    diagnostics.add_run(run)
 
     # Run with truncated energy norm semi-Bayesian operator augmentation
     run = dgn.TruncEnAugProblemRun(problem_def, 2)
     run.num_sub_runs = 100
     run.samples_per_sub_run = 100
-    #diagnostics.add_run(run)
+    diagnostics.add_run(run)
 
     # Run with truncated energy norm semi-Bayesian operator augmentation
     run = dgn.TruncEnAugProblemRun(problem_def, 4)
     run.num_sub_runs = 100
     run.samples_per_sub_run = 100
-    #diagnostics.add_run(run)
+    diagnostics.add_run(run)
 
     # Run with accelerated truncated energy norm semi-Bayesian operator augmentation
     run = dgn.TruncEnAugAccelProblemRun(problem_def, 2)
     run.num_sub_runs = 100
     run.samples_per_sub_run = 100
-    #diagnostics.add_run(run)
+    diagnostics.add_run(run)
 
     # Run with accelerated truncated energy norm semi-Bayesian operator augmentation
     run = dgn.TruncEnAugAccelProblemRun(problem_def, 4)
     run.num_sub_runs = 100
     run.samples_per_sub_run = 100
-    #diagnostics.add_run(run)
+    diagnostics.add_run(run)
 
     # Run with accelerated truncated energy norm semi-Bayesian operator augmentation
     run = dgn.TruncEnAugAccelProblemRun(problem_def, 6)
     run.num_sub_runs = 100
     run.samples_per_sub_run = 100
-    #diagnostics.add_run(run)
+    diagnostics.add_run(run)
 
     # Run hard window truncated energy norm operator augmentation
     run = dgn.TruncEnAugProblemRun(problem_def, 2, window_funcs='hard')
     run.num_sub_runs = 100
     run.samples_per_sub_run = 100
-    #diagnostics.add_run(run)
+    diagnostics.add_run(run)
 
     run = dgn.TruncEnAugProblemRun(problem_def, 4, window_funcs='hard')
     run.num_sub_runs = 100
     run.samples_per_sub_run = 100
-    #diagnostics.add_run(run)
+    diagnostics.add_run(run)
 
     # Run all diagnostics and print results
-    diagnostics.run()
+    diagnostics.run(num_threads=4)
     print()
     diagnostics.print_results()
     pickle.dump(diagnostics.results, open('dgn_grid_laplacian.pkl', 'wb'))

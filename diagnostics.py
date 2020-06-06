@@ -1,7 +1,7 @@
 import augmentation as aug
 import numpy as np
 from tqdm import tqdm
-
+import threading
 
 class MatrixParameterDistribution(aug.MatrixDistributionInterface):
     def __init__(self, matrix_parameters, fixed_hyper_parameters):
@@ -40,8 +40,8 @@ class ProblemDefinition:
 
         self.tru_mat = self.tru_distribution.convert(self.tru_distribution.matrix_parameters)
         self.tru_aux = self.tru_distribution.convert_auxiliary(self.tru_distribution.matrix_parameters)
-        self.energy_norm_squared = lambda x: np.dot(x, self.tru_mat.apply(x))
-        self.l2_norm_squared = lambda x: np.dot(x, x)
+        self.energy_norm_squared = lambda x: np.sqrt(np.dot(x, self.tru_mat.apply(x)))
+        self.l2_norm_squared = lambda x: np.sqrt(np.dot(x, x))
 
 
 class ProblemRun:
@@ -58,8 +58,8 @@ class ProblemRun:
         self.norm_names = []
         self.norms.append(parent.l2_norm_squared)
         self.norms.append(parent.energy_norm_squared)
-        self.norm_names.append('L2 norm squared')
-        self.norm_names.append('Energy norm squared')
+        self.norm_names.append('L2 norm')
+        self.norm_names.append('Energy norm')
 
     def sub_run(self, bootstrap_distribution: MatrixParameterDistribution,
                 b: np.ndarray) -> np.ndarray:
@@ -224,6 +224,47 @@ class ProblemRunResults:
 
 
 
+class DiagnosticThreadWorker:
+    def __init__(self, tru_distribution: MatrixParameterDistribution,
+                 parent_run: ProblemRun, problem: ProblemDefinition, num_sub_runs: int,
+                 thread_id: int):
+        self.tru_distribution = tru_distribution
+        self.num_sub_runs = num_sub_runs
+        self.parent_run = parent_run
+        self.problem = problem
+        self.thread_id = thread_id
+        self.errs = np.zeros((len(self.parent_run.norms), num_sub_runs))
+        self.sol_norms = np.zeros((len(self.parent_run.norms), num_sub_runs))
+
+    def run(self):
+        tru_mat = self.problem.tru_mat
+        tru_distribution = self.problem.tru_distribution
+        tru_aux = self.problem.tru_aux
+
+        if self.thread_id == 0:
+            iter = tqdm(range(0, self.num_sub_runs), desc=self.parent_run.name)
+        else:
+            iter = range(0, self.num_sub_runs)
+
+        for i in iter:
+            # Draw rhs from Bayes prior distribution
+            b = self.problem.b_distribution.draw_sample()
+
+            # Solve the true linear system b
+            tru_solution = tru_mat.solve(tru_aux.apply(b))
+
+            # Perform bootstrap operator augmentation
+            noisy_parameters = self.problem.tru_distribution.draw_parameters()
+            dist_type = self.problem.tru_distribution.__class__
+            bootstrap_distribution = dist_type(noisy_parameters, tru_distribution.fixed_hyper_parameters)
+            result = self.parent_run.sub_run(bootstrap_distribution, b)
+
+            # Get error from dis
+            for i_norm in range(0, len(self.parent_run.norms)):
+                self.errs[i_norm, i] = self.parent_run.norms[i_norm](result - tru_solution)
+                self.sol_norms[i_norm, i] = self.parent_run.norms[i_norm](tru_solution)
+
+
 class DiagnosticRun:
     def __init__(self, problem: ProblemDefinition):
         self.runs = []
@@ -233,7 +274,7 @@ class DiagnosticRun:
     def add_run(self, run):
         self.runs.append(run)
 
-    def run(self):
+    def run(self, num_threads=1):
         # Preprocess true solution if necessary
         tru_mat = self.problem.tru_mat
         tru_distribution = self.problem.tru_distribution
@@ -241,27 +282,28 @@ class DiagnosticRun:
         tru_mat.preprocess()
 
         for run in self.runs:
-            errs = np.zeros((len(run.norms), run.num_sub_runs))
-            sol_norms = np.zeros((len(run.norms), run.num_sub_runs))
+            sub_runs_per_thread = int(run.num_sub_runs / num_threads)
+            total_sub_runs = sub_runs_per_thread * num_threads
+            workers = [DiagnosticThreadWorker(tru_distribution, run, self.problem, sub_runs_per_thread, i)
+                       for i in range(0, num_threads)]
 
-            for i in tqdm(range(0, run.num_sub_runs), desc=run.name):
+            # Break up work among the threads
+            if num_threads == 1:
+                workers[0].run()
+            else:
+                # Launch threads
+                worker_threads = [threading.Thread(target=DiagnosticThreadWorker.run, args=(w,), daemon=True)
+                                  for w in workers]
+                for t in worker_threads:
+                    t.start()
 
-                # Draw rhs from Bayes prior distribution
-                b = self.problem.b_distribution.draw_sample()
+                # Wait to finish
+                for t in worker_threads:
+                    t.join()
 
-                # Solve the true linear system b
-                tru_solution = tru_mat.solve(tru_aux.apply(b))
-
-                # Perform bootstrap operator augmentation
-                noisy_parameters = self.problem.tru_distribution.draw_parameters()
-                dist_type = self.problem.tru_distribution.__class__
-                bootstrap_distribution = dist_type(noisy_parameters, tru_distribution.fixed_hyper_parameters)
-                result = run.sub_run(bootstrap_distribution, b)
-
-                # Get error from dis
-                for i_norm in range(0, len(run.norms)):
-                    errs[i_norm, i] = run.norms[i_norm](result - tru_solution)
-                    sol_norms[i_norm, i] = run.norms[i_norm](tru_solution)
+            # Concatenate results
+            errs = np.hstack([w.errs for w in workers])
+            sol_norms = np.hstack([w.sol_norms for w in workers])
 
             self.results.append(ProblemRunResults(run, errs, sol_norms))
 
