@@ -93,8 +93,8 @@ class AugProblemRun(ProblemRun):
         sampled_mat = bootstrap_distribution.convert(bootstrap_distribution.matrix_parameters)
         sampled_mat.preprocess()
         op_Ahat_inv = lambda x: sampled_mat.solve(x)
-        return aug.aug(self.samples_per_sub_run, self.samples_per_system, b,
-                       op_Ahat_inv, bootstrap_distribution, self.q_u_distribution, self.op_R, self.op_B)
+        return aug.aug_sym(self.samples_per_sub_run, self.samples_per_system, b,
+                           op_Ahat_inv, bootstrap_distribution, self.q_u_distribution, self.op_R, self.op_B)
 
 
 class EnAugProblemRun(ProblemRun):

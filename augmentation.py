@@ -144,14 +144,14 @@ def hard_shifted_window_func_denominator(N, k, alpha):
         return 0
 
 # Implement baseline operator augmentation
-def aug_fac(num_system_samples: int,
-            num_per_system_samples: int,
-            dimension: int,
-            op_Ahat_inv,
-            bootstrap_mat_dist: MatrixDistributionInterface,
-            q_u_dist: VectorPairDistributionInterface = None,
-            op_R = lambda x: x,
-            op_B = lambda x: x):
+def aug_sym_fac(num_system_samples: int,
+                num_per_system_samples: int,
+                dimension: int,
+                op_Ahat_inv,
+                bootstrap_mat_dist: MatrixDistributionInterface,
+                q_u_dist: VectorPairDistributionInterface = None,
+                op_R = lambda x: x,
+                op_B = lambda x: x):
 
     numerator = 0.0
     denominator = 0.0
@@ -187,29 +187,97 @@ def aug_fac(num_system_samples: int,
     return max(numerator / denominator, 0.0)
 
 
-def aug(num_system_samples: int,
-        num_per_system_samples: int,
-        rhs: np.ndarray,
-        op_Ahat_inv,
-        bootstrap_mat_dist: MatrixDistributionInterface,
-        q_u_dist: VectorPairDistributionInterface = None,
-        op_R = lambda x: x,
-        op_B = lambda x: x):
-
-    beta = aug_fac(num_system_samples,
-                   num_per_system_samples,
-                   len(rhs), op_Ahat_inv,
-                   bootstrap_mat_dist,
-                   q_u_dist, op_R, op_B)
-
-    return pre_aug(beta, rhs, op_Ahat_inv, op_R, op_B)
-
-
-def pre_aug(beta,
+def aug_sym(num_system_samples: int,
+            num_per_system_samples: int,
             rhs: np.ndarray,
             op_Ahat_inv,
+            bootstrap_mat_dist: MatrixDistributionInterface,
+            q_u_dist: VectorPairDistributionInterface = None,
             op_R = lambda x: x,
             op_B = lambda x: x):
+
+    beta = aug_sym_fac(num_system_samples,
+                       num_per_system_samples,
+                       len(rhs), op_Ahat_inv,
+                       bootstrap_mat_dist,
+                       q_u_dist, op_R, op_B)
+
+    return pre_aug_sym(beta, rhs, op_Ahat_inv, op_R, op_B)
+
+
+def pre_aug_sym(beta,
+                rhs: np.ndarray,
+                op_Ahat_inv,
+                op_R = lambda x: x,
+                op_B = lambda x: x):
+
+    xhat = op_Ahat_inv(rhs)
+    augmentation = beta * op_R(op_Ahat_inv(op_B(rhs)))
+    return xhat - augmentation
+
+
+# Implement baseline operator augmentation (asymmetric)
+def aug_asym_fac(num_system_samples: int,
+                num_per_system_samples: int,
+                dimension: int,
+                op_Ahat_inv,
+                bootstrap_mat_dist: DualMatrixDistributionInterface,
+                b_dist: VectorDistributionInterface = None,
+                op_R = lambda x: x,
+                op_B = lambda x: x):
+
+    numerator = 0.0
+    denominator = 0.0
+    for i_system in range(0, num_system_samples):
+        Ahat_bootstrap, Mhat_bootstrap = bootstrap_mat_dist.draw_dual_sample()
+        Ahat_bootstrap.preprocess()
+
+        for i_rhs in range(0, num_per_system_samples):
+            if b_dist is None:
+                b = np.random.randn(dimension)
+            else:
+                b = b_dist.draw_sample()
+
+            b = Mhat_bootstrap.apply(b)
+            Bb = op_B(b)
+
+            a_boot_inv_Bb = Ahat_bootstrap.solve(Bb)
+
+            a_boot_inv_b = Ahat_bootstrap.solve(b)
+            a_inv_b = op_Ahat_inv(b)
+
+            r_a_boot_inv_Bb = op_R(a_boot_inv_Bb)
+            w_a_boot_inv_Bb = op_B(r_a_boot_inv_Bb)
+
+            numerator += np.dot(w_a_boot_inv_Bb, a_boot_inv_b - a_inv_b)
+            denominator += np.dot(w_a_boot_inv_Bb, r_a_boot_inv_Bb)
+
+    return max(numerator / denominator, 0.0)
+
+
+def aug_asym(num_system_samples: int,
+            num_per_system_samples: int,
+            rhs: np.ndarray,
+            op_Ahat_inv,
+            bootstrap_mat_dist: DualMatrixDistributionInterface,
+            b_dist: VectorDistributionInterface = None,
+            op_R = lambda x: x,
+            op_B = lambda x: x):
+
+    beta = aug_asym_fac(num_system_samples,
+                       num_per_system_samples,
+                       len(rhs), op_Ahat_inv,
+                       bootstrap_mat_dist,
+                       b_dist, op_R, op_B)
+
+    return pre_aug_asym(beta, rhs, op_Ahat_inv, op_R, op_B)
+
+
+def pre_aug_asym(beta,
+                rhs: np.ndarray,
+                op_Ahat_inv,
+                op_R = lambda x: x,
+                op_B = lambda x: x):
 
     xhat = op_Ahat_inv(rhs)
     augmentation = beta * op_R(op_Ahat_inv(op_B(rhs)))
