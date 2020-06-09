@@ -3,7 +3,7 @@ import numpy as np
 from tqdm import tqdm
 import threading
 
-class MatrixParameterDistribution(aug.MatrixDistributionInterface):
+class MatrixParameterDistribution(aug.DualMatrixDistributionInterface):
     def __init__(self, matrix_parameters, fixed_hyper_parameters):
         self.matrix_parameters = matrix_parameters
         self.fixed_hyper_parameters = fixed_hyper_parameters
@@ -30,6 +30,9 @@ class MatrixParameterDistribution(aug.MatrixDistributionInterface):
 
     def get_dimension(self) -> int:
         raise Exception('get_dimension not implemented!')
+
+    def is_dual_distribution(self) -> bool:
+        return False
 
 
 class ProblemDefinition:
@@ -93,8 +96,8 @@ class AugProblemRun(ProblemRun):
         sampled_mat = bootstrap_distribution.convert(bootstrap_distribution.matrix_parameters)
         sampled_mat.preprocess()
         op_Ahat_inv = lambda x: sampled_mat.solve(x)
-        return aug.aug_sym(self.samples_per_sub_run, self.samples_per_system, b,
-                           op_Ahat_inv, bootstrap_distribution, self.q_u_distribution, self.op_R, self.op_B)
+        return aug.aug(self.samples_per_sub_run, self.samples_per_system, b,
+                       op_Ahat_inv, bootstrap_distribution, self.q_u_distribution, self.op_R, self.op_B)
 
 
 class EnAugProblemRun(ProblemRun):

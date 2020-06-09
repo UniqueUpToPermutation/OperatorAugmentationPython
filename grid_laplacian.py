@@ -89,8 +89,8 @@ def run_test(tru_a, runs, samples_per_run, std_dev):
         naive_solution = op_Ahat_inv(b)
 
         # Perform simple augmentation using a scaled identity prior on b
-        aug_solution = aug.aug_sym(samples_per_run, 1, b,
-                                   op_Ahat_inv, bootstrap_dist, q_u_dist)
+        aug_solution = aug.aug(samples_per_run, 1, b,
+                               op_Ahat_inv, bootstrap_dist, q_u_dist)
         # Perform energy-augmentation using a scaled identity prior on b
         en_aug_solution = aug.en_aug(samples_per_run, 1, b,
                                      op_Ahat_inv, op_Ahat, bootstrap_dist, q_dist)
