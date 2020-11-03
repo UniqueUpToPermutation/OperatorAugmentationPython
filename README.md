@@ -1,9 +1,23 @@
 # Python Operator Augmentation
 
 Python implementation of the methods in our paper "Operator Augmentation for Elliptic Systems,"
-as well as a testbed of problems to benchmark performance. This python testbed is substantially less
-performant than the C++ implementation, and so is recommended only for prototyping.
+as well as a testbed of problems to benchmark performance. This python testbed is less
+performant and documented than the C++ implementation, and so we recommended it only for prototyping.
 
-## Prerequisites
+![Diagram](images/Diagram.png)
 
-This testbed requires the Numpy, Scipy, and NetworkX library. I recommend you install the Anaconda distribution of Python.
+# Dependencies
+
+This testbed requires:
+
+* **Numpy**.
+* **Scipy**.
+* **NetworkX**.
+
+I recommend you use the Anaconda distribution of Python.
+
+# Code Structure and Usage
+
+The code structure more or less parallels the structure of the C++ code. Indeed, the C++ implementation is more or less a port of the Python implementation. Since documentation for the two is more or less interchangeable, I recommend you see the README of the [C++ Version](https://github.com/UniqueUpToPermutation/OperatorAugmentationCPP) for guidelines on usage, since most of what is written there applies almost verbatim to this implementation.
+
+Unlike in C++, there is no central program to call the provided examples. Instead we simply provide individual Python scripts:
